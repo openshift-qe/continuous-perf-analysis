@@ -7,8 +7,14 @@ module github.com/kedark3/cpa
 go 1.16
 
 require (
+	github.com/onsi/ginkgo v1.16.5 // indirect
+	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/openshift/openshift-tests v0.0.0-20210916082130-4fca21c38ee6
+	github.com/prometheus/common v0.6.0
+	k8s.io/api v0.17.1
 	k8s.io/apimachinery v0.17.1
+	k8s.io/kubernetes v1.21.0
+	sigs.k8s.io/yaml v1.2.0
 )
 
 replace (
@@ -42,4 +48,5 @@ replace (
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20191121182806-cdbd52110e91
 	k8s.io/metrics => k8s.io/metrics v0.0.0-20191121181631-c7d4ee0ffc0e
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20191121181040-36c9528858d2
+	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.2.0
 )

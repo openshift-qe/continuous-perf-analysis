@@ -1,17 +1,57 @@
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/url"
 	"strings"
 	"time"
+
+	"github.com/prometheus/common/model"
 
 	exutil "github.com/openshift/openshift-tests/test/extended/util"
 	v1 "k8s.io/api/core/v1"
 	kapierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	e2e "k8s.io/kubernetes/test/e2e/framework"
+	yaml "sigs.k8s.io/yaml"
 )
 
+const configPath = "./config/"
+
+type prometheusConfig struct {
+	Url         string `json:"URL"`
+	BearerToken string `json:"BearerToken"`
+}
+
+func (c *prometheusConfig) Parse(data []byte) error {
+	return yaml.Unmarshal(data, c)
+}
+
+func readPrometheusConfig() (url, bearerToken string, ok bool) {
+	data, err := ioutil.ReadFile(configPath + "prometheus.yaml")
+	if err != nil {
+		log.Printf("Cound't read %s/prometheus.yaml", configPath)
+		return "", "", false
+	}
+	var config prometheusConfig
+	if err := config.Parse(data); err != nil {
+		log.Fatal(err)
+	}
+	if (config != prometheusConfig{}) {
+		return config.Url, config.BearerToken, true
+	}
+	return "", "", false
+}
+
 func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, ok bool) {
+	url, bearerToken, ok = readPrometheusConfig()
+	if ok {
+		return
+	}
+
 	_, err := oc.AdminKubeClient().CoreV1().Services("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
 	if kapierrs.IsNotFound(err) {
 		return "", "", false
@@ -39,4 +79,88 @@ func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, ok bool) {
 		}
 	}
 	return "https://prometheus-k8s.openshift-monitoring.svc:9901", bearerToken, true
+}
+
+type prometheusResponse struct {
+	Status string                 `json:"status"`
+	Data   prometheusResponseData `json:"data"`
+}
+
+type prometheusResponseData struct {
+	ResultType string       `json:"resultType"`
+	Result     model.Vector `json:"result"`
+}
+
+const (
+	maxPrometheusQueryAttempts = 5
+	prometheusQueryRetrySleep  = 10 * time.Second
+)
+
+func getBearerTokenURLViaPod(ns, execPodName, url, bearer string) (string, error) {
+	cmd := fmt.Sprintf("curl -s -k -H 'Authorization: Bearer %s' %q", bearer, url)
+	log.Printf("curl -s -k -H 'Authorization: Bearer %s' %q", bearer, url)
+	output, err := e2e.RunHostCmd(ns, execPodName, cmd)
+	if err != nil {
+		return "", fmt.Errorf("host command failed: %v\n%s", err, output)
+	}
+	return output, nil
+}
+
+func RunQueries(promQueries map[string]bool, oc *exutil.CLI, ns, execPodName, baseURL, bearerToken string) {
+	// expect all correct metrics within a reasonable time period
+	queryErrors := make(map[string]error)
+	passed := make(map[string]struct{})
+	for i := 0; i < maxPrometheusQueryAttempts; i++ {
+		for query, expected := range promQueries {
+			if _, ok := passed[query]; ok {
+				continue
+			}
+			//TODO when the http/query apis discussed at https://github.com/prometheus/client_golang#client-for-the-prometheus-http-api
+			// and introduced at https://github.com/prometheus/client_golang/blob/master/api/prometheus/v1/api.go are vendored into
+			// openshift/origin, look to replace this homegrown http request / query param with that API
+			url := fmt.Sprintf("%s/api/v1/query?%s", baseURL, (url.Values{"query": []string{query}}).Encode())
+			contents, err := getBearerTokenURLViaPod(ns, execPodName, url, bearerToken)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// check query result, if this is a new error log it, otherwise remain silent
+			var result prometheusResponse
+			if err := json.Unmarshal([]byte(contents), &result); err != nil {
+				e2e.Logf("unable to parse query response for %s: %v", query, err)
+				continue
+			}
+			metrics := result.Data.Result
+			if result.Status != "success" {
+				data, _ := json.Marshal(metrics)
+				msg := fmt.Sprintf("promQL query: %s had reported incorrect status:\n%s", query, data)
+				if prev, ok := queryErrors[query]; !ok || prev.Error() != msg {
+					e2e.Logf("%s", msg)
+				}
+				queryErrors[query] = fmt.Errorf(msg)
+				continue
+			}
+			if (len(metrics) > 0 && !expected) || (len(metrics) == 0 && expected) {
+				data, _ := json.Marshal(metrics)
+				msg := fmt.Sprintf("promQL query: %s had reported incorrect results:\n%s", query, data)
+				if prev, ok := queryErrors[query]; !ok || prev.Error() != msg {
+					e2e.Logf("%s", msg)
+				}
+				queryErrors[query] = fmt.Errorf(msg)
+				continue
+			}
+
+			// query successful
+			passed[query] = struct{}{}
+			delete(queryErrors, query)
+		}
+
+		if len(queryErrors) == 0 {
+			break
+		}
+		time.Sleep(prometheusQueryRetrySleep)
+	}
+
+	if len(queryErrors) != 0 {
+		exutil.DumpPodLogsStartingWith("prometheus-0", oc)
+	}
 }
