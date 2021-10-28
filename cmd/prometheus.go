@@ -1,17 +1,18 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/prometheus/common/model"
-
 	exutil "github.com/openshift/openshift-tests/test/extended/util"
+	"github.com/prometheus/common/model"
 	v1 "k8s.io/api/core/v1"
 	kapierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,7 +79,11 @@ func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, ok bool) {
 			continue
 		}
 	}
-	return "https://prometheus-k8s.openshift-monitoring.svc:9901", bearerToken, true
+	route, err := oc.AdminRouteClient().RouteV1().Routes("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
+	if kapierrs.IsNotFound(err) {
+		return "", "", false
+	}
+	return "https://" + route.Spec.Host, bearerToken, true
 }
 
 type prometheusResponse struct {
@@ -96,14 +101,31 @@ const (
 	prometheusQueryRetrySleep  = 10 * time.Second
 )
 
-func getBearerTokenURLViaPod(ns, execPodName, url, bearer string) (string, error) {
-	cmd := fmt.Sprintf("curl -s -k -H 'Authorization: Bearer %s' %q", bearer, url)
-	log.Printf("curl -s -k -H 'Authorization: Bearer %s' %q", bearer, url)
-	output, err := e2e.RunHostCmd(ns, execPodName, cmd)
-	if err != nil {
-		return "", fmt.Errorf("host command failed: %v\n%s", err, output)
+func runQueryViaHTTP(url, bearer string) (string, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	return output, nil
+	client := &http.Client{Transport: tr}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bearer))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Printf("Prometheus request returned HTTP Code: %d\n", resp.StatusCode)
+	return string(contents), nil
 }
 
 func RunQueries(promQueries map[string]bool, oc *exutil.CLI, ns, execPodName, baseURL, bearerToken string) {
@@ -119,7 +141,7 @@ func RunQueries(promQueries map[string]bool, oc *exutil.CLI, ns, execPodName, ba
 			// and introduced at https://github.com/prometheus/client_golang/blob/master/api/prometheus/v1/api.go are vendored into
 			// openshift/origin, look to replace this homegrown http request / query param with that API
 			url := fmt.Sprintf("%s/api/v1/query?%s", baseURL, (url.Values{"query": []string{query}}).Encode())
-			contents, err := getBearerTokenURLViaPod(ns, execPodName, url, bearerToken)
+			contents, err := runQueryViaHTTP(url, bearerToken)
 			if err != nil {
 				log.Fatal(err)
 			}
