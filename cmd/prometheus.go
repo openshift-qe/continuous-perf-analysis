@@ -124,11 +124,10 @@ func runQueryViaHTTP(url, bearer string) (string, error) {
 		return "", err
 	}
 
-	fmt.Printf("Prometheus request returned HTTP Code: %d\n", resp.StatusCode)
 	return string(contents), nil
 }
 
-func RunQueries(promQueries map[string]bool, oc *exutil.CLI, ns, execPodName, baseURL, bearerToken string) {
+func RunQueries(promQueries map[string]bool, oc *exutil.CLI, baseURL, bearerToken string) {
 	// expect all correct metrics within a reasonable time period
 	queryErrors := make(map[string]error)
 	passed := make(map[string]struct{})
@@ -170,7 +169,7 @@ func RunQueries(promQueries map[string]bool, oc *exutil.CLI, ns, execPodName, ba
 				queryErrors[query] = fmt.Errorf(msg)
 				continue
 			}
-
+			log.Printf("Result is: %s", result.Data)
 			// query successful
 			passed[query] = struct{}{}
 			delete(queryErrors, query)
