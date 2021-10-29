@@ -169,7 +169,11 @@ func RunQueries(promQueries map[string]bool, oc *exutil.CLI, baseURL, bearerToke
 				queryErrors[query] = fmt.Errorf(msg)
 				continue
 			}
-			log.Printf("Result is: %s", result.Data)
+			for _, r := range result.Data.Result {
+				log.Printf("Type is %[1]T \n Metric is: %[1]s\n\n", r.Metric)
+				log.Printf("Type is %[1]T \n Value is: %[1]s\n\n", r.Value)
+			}
+			log.Printf("Type is %[1]T \n Result is: %[1]s\n\n", result.Data.Result[0].Metric)
 			// query successful
 			passed[query] = struct{}{}
 			delete(queryErrors, query)
