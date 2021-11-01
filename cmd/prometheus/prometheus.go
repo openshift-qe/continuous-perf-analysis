@@ -1,5 +1,12 @@
 package cmd
 
+/*
+Program to read the prometheus config, and use it to run queries against OCP Cluster prometheus.
+You can either set the Prometheus URL and BearerToken in config/prometheus.yaml or with the
+KUBECONFIG env var being set, the program can use oc get routes and oc get secrets to find the URL
+and bearer Token.
+*/
+
 import (
 	"crypto/tls"
 	"encoding/json"
@@ -23,8 +30,8 @@ import (
 const configPath = "./config/"
 
 type prometheusConfig struct {
-	Url         string `json:"URL"`
-	BearerToken string `json:"BearerToken"`
+	Url         string `json:"url"`
+	BearerToken string `json:"bearerToken"`
 }
 
 func (c *prometheusConfig) Parse(data []byte) error {
@@ -127,65 +134,58 @@ func runQueryViaHTTP(url, bearer string) (string, error) {
 	return string(contents), nil
 }
 
-func RunQueries(promQueries map[string]bool, oc *exutil.CLI, baseURL, bearerToken string) {
+func RunQuery(promQuery string, oc *exutil.CLI, baseURL, bearerToken string) (prometheusResponse, error) {
 	// expect all correct metrics within a reasonable time period
 	queryErrors := make(map[string]error)
 	passed := make(map[string]struct{})
+	var result prometheusResponse
 	for i := 0; i < maxPrometheusQueryAttempts; i++ {
-		for query, expected := range promQueries {
-			if _, ok := passed[query]; ok {
-				continue
-			}
-			//TODO when the http/query apis discussed at https://github.com/prometheus/client_golang#client-for-the-prometheus-http-api
-			// and introduced at https://github.com/prometheus/client_golang/blob/master/api/prometheus/v1/api.go are vendored into
-			// openshift/origin, look to replace this homegrown http request / query param with that API
-			url := fmt.Sprintf("%s/api/v1/query?%s", baseURL, (url.Values{"query": []string{query}}).Encode())
-			contents, err := runQueryViaHTTP(url, bearerToken)
-			if err != nil {
-				log.Fatal(err)
-			}
-			// check query result, if this is a new error log it, otherwise remain silent
-			var result prometheusResponse
-			if err := json.Unmarshal([]byte(contents), &result); err != nil {
-				e2e.Logf("unable to parse query response for %s: %v", query, err)
-				continue
-			}
-			metrics := result.Data.Result
-			if result.Status != "success" {
-				data, _ := json.Marshal(metrics)
-				msg := fmt.Sprintf("promQL query: %s had reported incorrect status:\n%s", query, data)
-				if prev, ok := queryErrors[query]; !ok || prev.Error() != msg {
-					e2e.Logf("%s", msg)
-				}
-				queryErrors[query] = fmt.Errorf(msg)
-				continue
-			}
-			if (len(metrics) > 0 && !expected) || (len(metrics) == 0 && expected) {
-				data, _ := json.Marshal(metrics)
-				msg := fmt.Sprintf("promQL query: %s had reported incorrect results:\n%s", query, data)
-				if prev, ok := queryErrors[query]; !ok || prev.Error() != msg {
-					e2e.Logf("%s", msg)
-				}
-				queryErrors[query] = fmt.Errorf(msg)
-				continue
-			}
-			for _, r := range result.Data.Result {
-				log.Printf("Type is %[1]T \n Metric is: %[1]s\n\n", r.Metric)
-				log.Printf("Type is %[1]T \n Value is: %[1]s\n\n", r.Value)
-			}
-			log.Printf("Type is %[1]T \n Result is: %[1]s\n\n", result.Data.Result[0].Metric)
-			// query successful
-			passed[query] = struct{}{}
-			delete(queryErrors, query)
+		if _, ok := passed[promQuery]; ok {
+			continue
 		}
 
-		if len(queryErrors) == 0 {
-			break
+		url := fmt.Sprintf("%s/api/v1/query?%s", baseURL, (url.Values{"query": []string{promQuery}}).Encode())
+		contents, err := runQueryViaHTTP(url, bearerToken)
+		if err != nil {
+			log.Fatal(err)
 		}
+		// check query result, if this is a new error log it, otherwise remain silent
+		if err := json.Unmarshal([]byte(contents), &result); err != nil {
+			e2e.Logf("unable to parse query response for %s: %v", promQuery, err)
+			continue
+		}
+		metrics := result.Data.Result
+		if result.Status != "success" {
+			data, _ := json.Marshal(metrics)
+			msg := fmt.Sprintf("promQL query: %s had reported incorrect status:\n%s", promQuery, data)
+			if prev, ok := queryErrors[promQuery]; !ok || prev.Error() != msg {
+				e2e.Logf("%s", msg)
+			}
+			queryErrors[promQuery] = fmt.Errorf(msg)
+			continue
+		}
+
+		// for _, r := range result.Data.Result {
+		// 	log.Printf("Type is %[1]T \n Metric is: %[1]s\n\n", r.Metric["phase"])
+		// 	log.Printf("Type is %[1]T \n Value is: %[1]s\n\n", r.Value)
+		// 	if r.Metric["phase"] == "Running" {
+		// 		log.Printf("We have %v pod in %s phase", r.Value, r.Metric["phase"])
+		// 	}
+		// }
+		// query successful
+		passed[promQuery] = struct{}{}
+		delete(queryErrors, promQuery)
+		// if there were no errors let's break out of the loop
+		if len(queryErrors) == 0 {
+			return result, nil
+		}
+		// else sleep for 10 sec
 		time.Sleep(prometheusQueryRetrySleep)
 	}
 
+	// if there were errors, dump logs from prometheus pod
 	if len(queryErrors) != 0 {
 		exutil.DumpPodLogsStartingWith("prometheus-0", oc)
 	}
+	return result, queryErrors[promQuery]
 }

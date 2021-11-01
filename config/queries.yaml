@@ -1,0 +1,15 @@
+---
+- query: "sum(kube_pod_status_phase{}) by (phase) > 0"
+  watchFor:
+  - key: Phase
+    val: "Pending"
+    threshold: 10
+  - key: Phase
+    val: "Failed"
+    threshold: 0
+- query: "sum(kube_namespace_status_phase) by (phase)"
+  watchFor:
+  - key: Phase
+    val: "Terminating"
+    threshold: 0
+

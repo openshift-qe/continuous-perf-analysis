@@ -8,6 +8,6 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
 * [x] Create oc cli connection to OpenShift/Kubernetes using Kubeconfig
 * [x] Determine Prometheus url, bearerToken for OpenShift
 * [x] If Prometheus url, bearerToken already included in the yaml, use that
-* [ ] Create yaml format for queries, and expected outcomes (Use a struct to read that in)
-* [ ] Spawn goroutines to keep running queries and evaluating results
+* [x] Create yaml format for queries, and expected outcomes (Use a struct to read that in)
 * [ ] Notify/Do Something when results don't match conditions
+* [ ] Spawn goroutines to keep running queries and evaluating results to handle scale
