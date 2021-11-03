@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	analyze "github.com/kedark3/cpa/cmd/analyze"
+	prometheus "github.com/kedark3/cpa/cmd/prometheus"
+	exutil "github.com/openshift/openshift-tests/test/extended/util"
 
 	g "github.com/onsi/ginkgo"
 	o "github.com/onsi/gomega"
@@ -13,7 +16,7 @@ import (
 func main() {
 	o.RegisterFailHandler(g.Fail)
 
-	// oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())
+	oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())
 	// secrets, err := oc.AdminKubeClient().CoreV1().Secrets("openshift-monitoring").List(metav1.ListOptions{})
 
 	// if err != nil {
@@ -21,11 +24,11 @@ func main() {
 	// 	return
 	// }
 	// log.Printf("Found following secrets %d", secrets.Size())
-	// url, bearerToken, ok := prometheus.LocatePrometheus(oc)
-	// if !ok {
-	// 	log.Printf("Oops something went wrong while trying to fetch Prometheus url and bearerToken")
-	// 	return
-	// }
+	url, bearerToken, ok := prometheus.LocatePrometheus(oc)
+	if !ok {
+		log.Printf("Oops something went wrong while trying to fetch Prometheus url and bearerToken")
+		return
+	}
 
 	// queries := []string{
 	// `sum(kube_pod_status_phase{}) by (phase) > 0`, // pod count by phase
@@ -48,14 +51,22 @@ func main() {
 	// 	fmt.Println(prometheus.RunQuery(query, oc, url, bearerToken))
 	// 	fmt.Println()
 	// }
-	queryList, err := analyze.ReadPrometheusQueries()
-	if err != nil {
-		log.Println(err)
-	}
-	for _, items := range queryList {
-		fmt.Println(items.Query)
-		for _, watchItems := range items.WatchFor {
-			fmt.Println(watchItems.Key, watchItems.Val, watchItems.Threshold)
+	c := make(chan string)
+
+	go func(c chan string) {
+		for i := 1; ; i++ {
+			fmt.Printf("\n\n\nIteration no. %d\n", i)
+			queryList, err := analyze.ReadPrometheusQueries()
+			if err != nil {
+				log.Println(err)
+			}
+			analyze.Queries(queryList, oc, url, bearerToken, c)
+			d := time.Second * 20
+			fmt.Printf("\n Sleeping for %.2f mins.\n\n\n\n", d.Minutes())
+			time.Sleep(d)
+			fmt.Print("\033[H\033[2J") // clears screen before printing next iteration
 		}
-	}
+	}(c)
+	go analyze.Notify(c)
+	time.Sleep(time.Hour * 4)
 }
