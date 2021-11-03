@@ -1,0 +1,5 @@
+---
+# You can also set these or program will try to fetch this dynamically from OpenShift
+# as long as KUBECONFIG is set
+url:  # Use the public Route to prometheus
+bearerToken:
