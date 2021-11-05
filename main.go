@@ -24,9 +24,10 @@ func main() {
 	// 	return
 	// }
 	// log.Printf("Found following secrets %d", secrets.Size())
-	url, bearerToken, ok := prometheus.LocatePrometheus(oc)
-	if !ok {
+	url, bearerToken, err := prometheus.LocatePrometheus(oc)
+	if err != nil {
 		log.Printf("Oops something went wrong while trying to fetch Prometheus url and bearerToken")
+		log.Println(err)
 		return
 	}
 
@@ -59,6 +60,7 @@ func main() {
 			queryList, err := analyze.ReadPrometheusQueries()
 			if err != nil {
 				log.Println(err)
+				return
 			}
 			analyze.Queries(queryList, oc, url, bearerToken, c)
 			d := time.Second * 20

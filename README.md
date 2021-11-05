@@ -13,3 +13,7 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
 * [x] Spwan goroutine to receive notification when a query yields "False" value
 * [ ] Notify/Do Something when results don't match conditions
 * [ ] Spawn goroutines to keep running queries and evaluating results to handle scale - e.g. when we have very large number of queries in the yaml file, we can divide and concurrently run queries
+* [ ] File logging the output, screen will give current status, look at Prometheus alerts
+* [ ] Update to latest go and recompile
+* [ ] Add a parameter to read different query files in config dir
+* [ ] Add a parameter for the timeout

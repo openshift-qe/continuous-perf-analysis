@@ -53,7 +53,7 @@ func ReadPrometheusQueries() (queriesList queryList, err error) {
 	}
 	// fmt.Println(queriesList)
 	if len(queriesList) == 0 {
-		return queriesList, nil
+		return queriesList, fmt.Errorf("query list is empty: %v", queriesList)
 	}
 
 	return queriesList, nil
