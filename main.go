@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
+	"github.com/alexflint/go-arg"
 	analyze "github.com/kedark3/cpa/cmd/analyze"
 	prometheus "github.com/kedark3/cpa/cmd/prometheus"
 	exutil "github.com/openshift/openshift-tests/test/extended/util"
@@ -14,6 +14,13 @@ import (
 )
 
 func main() {
+	var args struct {
+		NoClrscr bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration." default:"false"`
+		Queries  string        `help:"queries file to use" default:"queries.yaml"`
+		Timeout  time.Duration `help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
+	}
+	arg.MustParse(&args)
+
 	o.RegisterFailHandler(g.Fail)
 
 	oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())
@@ -56,19 +63,25 @@ func main() {
 
 	go func(c chan string) {
 		for i := 1; ; i++ {
-			fmt.Printf("\n\n\nIteration no. %d\n", i)
-			queryList, err := analyze.ReadPrometheusQueries()
+			log.Printf("Iteration no. %d\n", i)
+			queryList, err := analyze.ReadPrometheusQueries(args.Queries)
 			if err != nil {
 				log.Println(err)
 				return
 			}
 			analyze.Queries(queryList, oc, url, bearerToken, c)
 			d := time.Second * 20
-			fmt.Printf("\n Sleeping for %.2f mins.\n\n\n\n", d.Minutes())
+			log.Printf("\n Sleeping for %.2f mins.\n\n\n\n", d.Minutes())
 			time.Sleep(d)
-			fmt.Print("\033[H\033[2J") // clears screen before printing next iteration
+			if !args.NoClrscr {
+				log.Print("\033[H\033[2J") // clears screen before printing next iteration
+			}
 		}
 	}(c)
 	go analyze.Notify(c)
-	time.Sleep(time.Hour * 4)
+	d, err := time.ParseDuration(args.Timeout.String())
+	if err != nil {
+		log.Println(err)
+	}
+	time.Sleep(d)
 }

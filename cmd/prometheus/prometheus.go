@@ -65,7 +65,7 @@ func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, err error) {
 	} else if url != "" && bearerToken != "" {
 		return
 	}
-	// if we haven't returned by now, means the token and url are empty, so let's find it
+	// if we haven't returned by now, means the token and url are empty, so let's find it.
 	_, err = oc.AdminKubeClient().CoreV1().Services("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
 	if kapierrs.IsNotFound(err) {
 		return "", "", err

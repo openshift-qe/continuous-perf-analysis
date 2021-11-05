@@ -42,8 +42,8 @@ func (q *queryList) Parse(data []byte) error {
 	return yaml.Unmarshal(data, q)
 }
 
-func ReadPrometheusQueries() (queriesList queryList, err error) {
-	data, err := ioutil.ReadFile(configPath + "queries.yaml")
+func ReadPrometheusQueries(queriesFile string) (queriesList queryList, err error) {
+	data, err := ioutil.ReadFile(configPath + queriesFile)
 	if err != nil {
 		log.Printf("Cound't read %s/queries.yaml", configPath)
 		return queriesList, err
@@ -51,7 +51,7 @@ func ReadPrometheusQueries() (queriesList queryList, err error) {
 	if err := queriesList.Parse(data); err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Println(queriesList)
+	// log.Println(queriesList)
 	if len(queriesList) == 0 {
 		return queriesList, fmt.Errorf("query list is empty: %v", queriesList)
 	}
@@ -61,21 +61,21 @@ func ReadPrometheusQueries() (queriesList queryList, err error) {
 
 func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c chan string) {
 	for _, items := range queryList {
-		fmt.Printf("\nQuery:%s\n", items.Query)
+		log.Printf("\nQuery:%s\n", items.Query)
 		result, err := prometheus.RunQuery(items.Query, oc, baseURL, bearerToken)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			continue
 		}
 		opMap := map[string]string{"eq": "==", "lt": "<", "gt": ">", "lte": "<=", "gte": ">="}
 		for _, metric := range result.Data.Result {
 			for _, watchItems := range items.WatchFor {
-				// fmt.Println(watchItems.Key, watchItems.Val, watchItems.Threshold)
-				// fmt.Println(metric.Metric[model.LabelName(watchItems.Key)], model.LabelValue(watchItems.Val), metric.Value)
+				// log.Println(watchItems.Key, watchItems.Val, watchItems.Threshold)
+				// log.Println(metric.Metric[model.LabelName(watchItems.Key)], model.LabelValue(watchItems.Val), metric.Value)
 				// e.g. if "metric.Metric[model.LabelName(watchItems.Key)]" --> metric.Metric["phase"] ==  model.LabelValue(watchItems.Val)  --> "Running"
 				// or watchItems key is nil - meaning its a numerical query such as max()
 				if metric.Metric[model.LabelName(watchItems.Key)] == model.LabelValue(watchItems.Val) || watchItems.Key == "nil" {
-					// fmt.Println(metric.Metric[model.LabelName(watchItems.Key)], metric.Value, watchItems.Threshold, watchItems.Operator)
+					// log.Println(metric.Metric[model.LabelName(watchItems.Key)], metric.Value, watchItems.Threshold, watchItems.Operator)
 					v1, _ := strconv.ParseFloat(metric.Value.String(), 64)
 					v2, _ := strconv.ParseFloat(watchItems.Threshold, 64)
 					b := true // if this becomes false we send message on go channel
@@ -91,9 +91,9 @@ func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c
 					case "gte":
 						b = v1 >= v2
 					}
-					fmt.Printf("\nValue: %.4f %s Threshold: %.4f is %t\n", v1, opMap[watchItems.Operator], v2, b)
+					log.Printf("\nValue: %.4f %s Threshold: %.4f is %t\n", v1, opMap[watchItems.Operator], v2, b)
 					if !b {
-						fmt.Printf("\n Comparison of Value and Threshold is %t. Notifying...\n", b)
+						log.Printf("\n Comparison of Value and Threshold is %t. Notifying...\n", b)
 						c <- fmt.Sprintf("\nValue: %.4f %s Threshold: %.4f is %t\n", v1, opMap[watchItems.Operator], v2, b)
 					}
 				}
@@ -107,9 +107,9 @@ func Notify(c chan string) {
 	for {
 		select {
 		case msg := <-c:
-			fmt.Println("***************************************")
-			fmt.Println("Received following on the channel:", msg)
-			fmt.Println("***************************************")
+			log.Println("***************************************")
+			log.Println("Received following on the channel:", msg)
+			log.Println("***************************************")
 		default:
 			fmt.Printf("\r%s Please Wait. No new message received on the channel....", waitChars[rand.Intn(4)])
 			time.Sleep(time.Millisecond * 500)
