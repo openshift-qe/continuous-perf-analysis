@@ -40,27 +40,32 @@ func (c *prometheusConfig) Parse(data []byte) error {
 
 func readPrometheusConfig() (url, bearerToken string, err error) {
 	data, err := ioutil.ReadFile(configPath + "prometheus.yaml")
-	msg := fmt.Sprintf("Cound't read %s/prometheus.yaml", configPath)
+	msg := fmt.Sprintf("Cound't read %sprometheus.yaml", configPath)
 	if err != nil {
-		log.Println(msg)
 		return "", "", fmt.Errorf(msg)
 	}
 	var config prometheusConfig
 	if err := config.Parse(data); err != nil {
 		log.Fatal(err)
+		return "", "", err
 	}
 	if (config != prometheusConfig{}) {
 		return config.Url, config.BearerToken, nil
+	} else {
+		// we didn't find token or url but we didn't hit any errors
+		// this means the url and token were empty, so return so
+		return "", "", nil
 	}
-	return "", "", fmt.Errorf(msg)
 }
 
 func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, err error) {
 	url, bearerToken, err = readPrometheusConfig()
 	if err != nil {
 		return "", "", err
+	} else if url != "" && bearerToken != "" {
+		return
 	}
-
+	// if we haven't returned by now, means the token and url are empty, so let's find it
 	_, err = oc.AdminKubeClient().CoreV1().Services("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
 	if kapierrs.IsNotFound(err) {
 		return "", "", err
