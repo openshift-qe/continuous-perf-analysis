@@ -17,9 +17,10 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
   * [x] Add parameter for clearing/not-clearing screen
   * [x] Add Parameter for timeout
 * [x] Add a Makefile
+* [x] File logging the output
+* [x] Print output to screen even when logging enabled - simultaneously
 * [ ] Notify/Do Something when results don't match conditions
 * [ ] Spawn goroutines to keep running queries and evaluating results to handle scale - e.g. when we have very large number of queries in the yaml file, we can divide and concurrently run queries
-* [ ] File logging the output, screen will give current status, look at Prometheus alerts
 
 
 

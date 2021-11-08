@@ -1,7 +1,9 @@
 package main
 
 import (
+	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/alexflint/go-arg"
@@ -15,13 +17,27 @@ import (
 
 func main() {
 	var args struct {
-		NoClrscr bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration." default:"false"`
-		Queries  string        `help:"queries file to use" default:"queries.yaml"`
-		Timeout  time.Duration `help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
+		NoClrscr  bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration. Clears screen by default." default:"false"`
+		Queries   string        `arg:"-q,--queries" help:"queries file to use" default:"queries.yaml"`
+		Timeout   time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
+		LogOutput bool          `arg:"-l,--log-output" help:"Output will be stored in a log file instead of stdout." default:"false"`
 	}
 	arg.MustParse(&args)
 
 	o.RegisterFailHandler(g.Fail)
+	if args.LogOutput {
+		f, err := os.OpenFile("cpa.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		multiWriter := io.MultiWriter(os.Stdout, f)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		//defer to close when you're done with it, not because you think it's idiomatic!
+		defer f.Close()
+
+		//set output of logs to f
+		log.SetOutput(multiWriter)
+	}
 
 	oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())
 	// secrets, err := oc.AdminKubeClient().CoreV1().Secrets("openshift-monitoring").List(metav1.ListOptions{})
