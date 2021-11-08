@@ -1,3 +1,5 @@
+// +build go1.17
+
 package main
 
 import (
@@ -17,10 +19,11 @@ import (
 
 func main() {
 	var args struct {
-		NoClrscr  bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration. Clears screen by default." default:"false"`
-		Queries   string        `arg:"-q,--queries" help:"queries file to use" default:"queries.yaml"`
-		Timeout   time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
-		LogOutput bool          `arg:"-l,--log-output" help:"Output will be stored in a log file instead of stdout." default:"false"`
+		NoClrscr       bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration. Clears screen by default." default:"false"`
+		Queries        string        `arg:"-q,--queries" help:"queries file to use" default:"queries.yaml"`
+		QueryFrequency time.Duration `arg:"-f,--query-frequency" help:"How often do we run queries. You can pass values like 4h or 1h10m10s" default:"20s"`
+		Timeout        time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
+		LogOutput      bool          `arg:"-l,--log-output" help:"Output will be stored in a log file instead of stdout." default:"false"`
 	}
 	arg.MustParse(&args)
 
@@ -86,9 +89,8 @@ func main() {
 				return
 			}
 			analyze.Queries(queryList, oc, url, bearerToken, c)
-			d := time.Second * 20
-			log.Printf("\n Sleeping for %.2f mins.\n\n\n\n", d.Minutes())
-			time.Sleep(d)
+			log.Printf("\n Sleeping for %.2f mins.\n\n\n\n", args.QueryFrequency.Minutes())
+			time.Sleep(args.QueryFrequency)
 			if !args.NoClrscr {
 				log.Print("\033[H\033[2J") // clears screen before printing next iteration
 			}

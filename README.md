@@ -19,6 +19,7 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
 * [x] Add a Makefile
 * [x] File logging the output
 * [x] Print output to screen even when logging enabled - simultaneously
+* [x] Let user decide query frequency
 * [ ] Notify/Do Something when results don't match conditions
 * [ ] Spawn goroutines to keep running queries and evaluating results to handle scale - e.g. when we have very large number of queries in the yaml file, we can divide and concurrently run queries
 
