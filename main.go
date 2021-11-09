@@ -24,6 +24,7 @@ func main() {
 		QueryFrequency time.Duration `arg:"-f,--query-frequency" help:"How often do we run queries. You can pass values like 4h or 1h10m10s" default:"20s"`
 		Timeout        time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
 		LogOutput      bool          `arg:"-l,--log-output" help:"Output will be stored in a log file instead of stdout." default:"false"`
+		KillBenchmark  string        `arg:"-k,--kill-benchmark" help:"When CPA is running in parallel with benchmark job, let CPA know to kill benchmark if any query fail. E.g. -k run_nodedensity_from_git.sh Helpful to preserve cluster for further analysis." default:""`
 	}
 	arg.MustParse(&args)
 
@@ -40,6 +41,9 @@ func main() {
 
 		//set output of logs to f
 		log.SetOutput(multiWriter)
+	}
+	if args.KillBenchmark != "" {
+		// TODO Add logic to handle running benchmark processes when analyze sends notification on the channel.
 	}
 
 	oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())

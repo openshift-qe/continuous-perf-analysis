@@ -6,8 +6,10 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
+	notify "github.com/kedark3/cpa/cmd/notify"
 	prometheus "github.com/kedark3/cpa/cmd/prometheus"
 	exutil "github.com/openshift/openshift-tests/test/extended/util"
 
@@ -107,9 +109,13 @@ func Notify(c chan string) {
 	for {
 		select {
 		case msg := <-c:
-			log.Println("***************************************")
-			log.Println("Received following on the channel:", msg)
-			log.Println("***************************************")
+			msgFmt := fmt.Sprintf(`
+%s
+Received following on the channel: %s
+%[1]s
+			`, strings.Repeat("~", 80), msg)
+			fmt.Println(msgFmt)
+			notify.SlackNotify(msg)
 		default:
 			fmt.Printf("\r%s Please Wait. No new message received on the channel....", waitChars[rand.Intn(4)])
 			time.Sleep(time.Millisecond * 500)
