@@ -10,6 +10,7 @@ import (
 
 	"github.com/alexflint/go-arg"
 	analyze "github.com/kedark3/cpa/cmd/analyze"
+	notify "github.com/kedark3/cpa/cmd/notify"
 	prometheus "github.com/kedark3/cpa/cmd/prometheus"
 	exutil "github.com/openshift/openshift-tests/test/extended/util"
 
@@ -61,6 +62,13 @@ func main() {
 		return
 	}
 
+	slackConfig, err := notify.ReadslackConfig()
+	if err != nil {
+		log.Printf("Oops something went wrong while trying to fetch Prometheus url and bearerToken")
+		log.Println(err)
+		return
+	}
+	// fmt.Println("UserID, Channel ID, slackToken: ", slackConfig)
 	// queries := []string{
 	// `sum(kube_pod_status_phase{}) by (phase) > 0`, // pod count by phase
 	// `sum(kube_namespace_status_phase) by (phase)`, // namespace count by phase
@@ -100,7 +108,7 @@ func main() {
 			}
 		}
 	}(c)
-	go analyze.Notify(c)
+	go slackConfig.Notify(c)
 	d, err := time.ParseDuration(args.Timeout.String())
 	if err != nil {
 		log.Println(err)

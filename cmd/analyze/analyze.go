@@ -4,12 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"strconv"
-	"strings"
-	"time"
 
-	notify "github.com/kedark3/cpa/cmd/notify"
 	prometheus "github.com/kedark3/cpa/cmd/prometheus"
 	exutil "github.com/openshift/openshift-tests/test/extended/util"
 
@@ -102,24 +98,4 @@ func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c
 			}
 		}
 	}
-}
-
-func Notify(c chan string) {
-	waitChars := []string{"/", "-", "\\", "|"}
-	for {
-		select {
-		case msg := <-c:
-			msgFmt := fmt.Sprintf(`
-%s
-Received following on the channel: %s
-%[1]s
-			`, strings.Repeat("~", 80), msg)
-			fmt.Println(msgFmt)
-			notify.SlackNotify(msg)
-		default:
-			fmt.Printf("\r%s Please Wait. No new message received on the channel....", waitChars[rand.Intn(4)])
-			time.Sleep(time.Millisecond * 500)
-		}
-	}
-
 }
