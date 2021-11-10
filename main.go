@@ -108,7 +108,6 @@ func main() {
 				return
 			}
 			analyze.Queries(queryList, oc, url, bearerToken, c)
-			log.Printf("\n Sleeping for %.2f mins.\n\n\n\n", args.QueryFrequency.Minutes())
 			time.Sleep(args.QueryFrequency)
 			if !args.NoClrscr {
 				log.Print("\033[H\033[2J") // clears screen before printing next iteration
