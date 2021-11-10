@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/alexflint/go-arg"
@@ -20,12 +21,12 @@ import (
 
 func main() {
 	var args struct {
-		NoClrscr       bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration. Clears screen by default." default:"false"`
-		Queries        string        `arg:"-q,--queries" help:"queries file to use" default:"queries.yaml"`
-		QueryFrequency time.Duration `arg:"-f,--query-frequency" help:"How often do we run queries. You can pass values like 4h or 1h10m10s" default:"20s"`
-		Timeout        time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
-		LogOutput      bool          `arg:"-l,--log-output" help:"Output will be stored in a log file instead of stdout." default:"false"`
-		KillBenchmark  string        `arg:"-k,--kill-benchmark" help:"When CPA is running in parallel with benchmark job, let CPA know to kill benchmark if any query fail. E.g. -k run_nodedensity_from_git.sh Helpful to preserve cluster for further analysis." default:""`
+		NoClrscr           bool          `arg:"--noclrscr" help:"Do not clear screen after each iteration. Clears screen by default." default:"false"`
+		Queries            string        `arg:"-q,--queries" help:"queries file to use" default:"queries.yaml"`
+		QueryFrequency     time.Duration `arg:"-f,--query-frequency" help:"How often do we run queries. You can pass values like 4h or 1h10m10s" default:"20s"`
+		Timeout            time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
+		LogOutput          bool          `arg:"-l,--log-output" help:"Output will be stored in a log file(cpa.log) in addition to stdout." default:"false"`
+		TerminateBenchmark string        `arg:"-k,--terminate-benchmark" help:"When CPA is running in parallel with benchmark job, let CPA know to kill benchmark if any query fail. (E.g. -k <processID>) Helpful to preserve cluster for further analysis." default:""`
 	}
 	arg.MustParse(&args)
 
@@ -43,8 +44,13 @@ func main() {
 		//set output of logs to f
 		log.SetOutput(multiWriter)
 	}
-	if args.KillBenchmark != "" {
+	if args.TerminateBenchmark != "" {
 		// TODO Add logic to handle running benchmark processes when analyze sends notification on the channel.
+		err := exec.Command("kill", "-SIGTERM", args.TerminateBenchmark).Run()
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
 	oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())
@@ -64,7 +70,7 @@ func main() {
 
 	slackConfig, err := notify.ReadslackConfig()
 	if err != nil {
-		log.Printf("Oops something went wrong while trying to fetch Prometheus url and bearerToken")
+		log.Printf("Oops something went wrong while trying to fetch Slack Config")
 		log.Println(err)
 		return
 	}
@@ -92,6 +98,7 @@ func main() {
 	// }
 	c := make(chan string)
 
+	thread_ts := slackConfig.SlackNotify("New benchmark started, we will monitor it for performance and notify here with the issues.", "")
 	go func(c chan string) {
 		for i := 1; ; i++ {
 			log.Printf("Iteration no. %d\n", i)
@@ -108,7 +115,7 @@ func main() {
 			}
 		}
 	}(c)
-	go slackConfig.Notify(c)
+	go slackConfig.Notify(c, thread_ts)
 	d, err := time.ParseDuration(args.Timeout.String())
 	if err != nil {
 		log.Println(err)
