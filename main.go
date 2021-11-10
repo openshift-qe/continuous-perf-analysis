@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/alexflint/go-arg"
@@ -43,14 +42,6 @@ func main() {
 
 		//set output of logs to f
 		log.SetOutput(multiWriter)
-	}
-	if args.TerminateBenchmark != "" {
-		// TODO Add logic to handle running benchmark processes when analyze sends notification on the channel.
-		err := exec.Command("kill", "-SIGTERM", args.TerminateBenchmark).Run()
-		if err != nil {
-			log.Fatal(err)
-		}
-		return
 	}
 
 	oc := exutil.NewCLI("prometheus-cpa", exutil.KubeConfigPath())
@@ -96,6 +87,7 @@ func main() {
 	// 	fmt.Println(prometheus.RunQuery(query, oc, url, bearerToken))
 	// 	fmt.Println()
 	// }
+	tb := make(chan bool)
 	c := make(chan string)
 
 	thread_ts := slackConfig.SlackNotify("New benchmark started, we will monitor it for performance and notify here with the issues.", "")
@@ -107,7 +99,7 @@ func main() {
 				log.Println(err)
 				return
 			}
-			analyze.Queries(queryList, oc, url, bearerToken, c)
+			analyze.Queries(queryList, oc, url, bearerToken, c, tb, args.TerminateBenchmark)
 			time.Sleep(args.QueryFrequency)
 			if !args.NoClrscr {
 				log.Print("\033[H\033[2J") // clears screen before printing next iteration
@@ -115,6 +107,11 @@ func main() {
 		}
 	}(c)
 	go slackConfig.Notify(c, thread_ts)
+
+	if args.TerminateBenchmark != "" {
+		go notify.TerminateBenchmark(tb, args.TerminateBenchmark)
+	}
+
 	d, err := time.ParseDuration(args.Timeout.String())
 	if err != nil {
 		log.Println(err)

@@ -60,17 +60,17 @@ func ReadPrometheusQueries(queriesFile string) (queriesList queryList, err error
 	return queriesList, nil
 }
 
-func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c chan string) {
+func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c chan string, tb chan bool, terminateBenchmark string) {
 	// start := time.Now()
 	for _, item := range queryList {
-		go runQuery(item, oc, baseURL, bearerToken, c)
+		go runQuery(item, oc, baseURL, bearerToken, c, tb, terminateBenchmark)
 	}
 	wg.Wait()
 	// end := time.Since(start)
 	// log.Printf("\n It takes %s time to run queries", end)
 }
 
-func runQuery(q queries, oc *exutil.CLI, baseURL, bearerToken string, c chan string) {
+func runQuery(q queries, oc *exutil.CLI, baseURL, bearerToken string, c chan string, tb chan bool, terminateBenchmark string) {
 	wg.Add(1)
 	defer wg.Done()
 	result, err := prometheus.RunQuery(q.Query, oc, baseURL, bearerToken)
@@ -109,6 +109,9 @@ Value: %.4f %s Threshold: %.4f is %t
 				if !b {
 					log.Printf("\n%[2]s\n Comparison of Value and Threshold is %[1]t. Notifying...\n%[2]s\n", b, strings.Repeat("~", 80))
 					c <- fmt.Sprintf("\nValue: %.4f %s Threshold: %.4f is %t\n", v1, opMap[watchItems.Operator], v2, b)
+					if terminateBenchmark != "" {
+						tb <- true // send signal to terminate benchmark channel
+					}
 				}
 			}
 		}

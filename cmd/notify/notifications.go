@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -69,7 +71,7 @@ func (s slackConfig) Notify(c chan string, thread_ts string) {
 Received following on the channel: %s
 %[1]s
 			`, strings.Repeat("~", 80), msg)
-			fmt.Println(msgFmt)
+			log.Println(msgFmt)
 			s.SlackNotify("Following query failed:"+msg, thread_ts)
 		default:
 			fmt.Printf("\r%s Please Wait. No new message received on the channel....", waitChars[rand.Intn(4)])
@@ -77,4 +79,43 @@ Received following on the channel: %s
 		}
 	}
 
+}
+
+func TerminateBenchmark(tb chan bool, processID string) {
+	for {
+		select {
+		case b := <-tb:
+			msgFmt := fmt.Sprintf(`
+%s
+Received signal %t to kill -SIGTERM %s
+%[1]s
+			`, strings.Repeat("~", 80), b, processID)
+			log.Println(msgFmt)
+			// TODO: should we terminate CPA as a result of termination of benchmark
+			err := exec.Command("kill", "-SIGTERM", processID).Run()
+			if err != nil {
+				// if the process is already killed, subsequent kills will fail with exit status 1
+				log.Println("Failed to kill the process:", processID, err)
+			}
+			os.Exit(1)
+			// proc, err := os.FindProcess(processID)
+			// if err != nil {
+			// 	// if the process is already killed, subsequent kills will fail with exit status 1
+			// 	log.Println("Failed to find the process:", processID, err)
+			// 	break
+			// }
+			// proc.Kill()
+			// state, err := proc.Wait()
+			// if err != nil || state.ExitCode() != 0 {
+			// 	// if the process is already killed, subsequent kills will fail with exit status 1
+			// 	log.Println("Failed to kill the process:", processID, err)
+			// 	log.Println("Exit code was", state.ExitCode())
+			// } else {
+			// 	log.Println("Killed the process:", processID)
+			// 	log.Println("Exit code was: ", state.ExitCode())
+			// }
+		default:
+			time.Sleep(time.Millisecond * 500)
+		}
+	}
 }
