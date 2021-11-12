@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/alexflint/go-arg"
@@ -89,16 +90,19 @@ func main() {
 	// }
 	tb := make(chan bool)
 	c := make(chan string)
-
+	queryList, err := analyze.ReadPrometheusQueries(args.Queries)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Println("Read following queries:")
+	for _, item := range queryList {
+		log.Println(item.Query)
+	}
 	thread_ts := slackConfig.SlackNotify("New benchmark started, we will monitor it for performance and notify here with the issues.", "")
 	go func(c chan string) {
 		for i := 1; ; i++ {
-			log.Printf("Iteration no. %d\n", i)
-			queryList, err := analyze.ReadPrometheusQueries(args.Queries)
-			if err != nil {
-				log.Println(err)
-				return
-			}
+			log.Printf("\n%[2]s\nIteration no. %[1]d\n%[2]s\n", i, strings.Repeat("~", 80))
 			analyze.Queries(queryList, oc, url, bearerToken, c, tb, args.TerminateBenchmark)
 			time.Sleep(args.QueryFrequency)
 			if !args.NoClrscr {
