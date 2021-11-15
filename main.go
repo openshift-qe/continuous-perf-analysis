@@ -66,6 +66,11 @@ func main() {
 		log.Println(err)
 		return
 	}
+
+	if slackConfig.ChannelID == "" || slackConfig.UserID == "" || slackConfig.SlackToken == "" {
+		log.Printf("Oops something went wrong while trying to fetch Slack Config, check config/slack.yaml")
+		return
+	}
 	// fmt.Println("UserID, Channel ID, slackToken: ", slackConfig)
 	// queries := []string{
 	// `sum(kube_pod_status_phase{}) by (phase) > 0`, // pod count by phase
