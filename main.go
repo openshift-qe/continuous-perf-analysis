@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -126,4 +127,5 @@ func main() {
 		log.Println(err)
 	}
 	time.Sleep(d)
+	slackConfig.SlackNotify(fmt.Sprintf("Continuous Perf Analysis has ended all iterations. Total time spent: %s", d.String()), thread_ts)
 }
