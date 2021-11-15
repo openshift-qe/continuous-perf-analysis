@@ -106,6 +106,7 @@ func main() {
 		log.Println(item.Query)
 	}
 	thread_ts := slackConfig.SlackNotify("New benchmark started, we will monitor it for performance and notify here with the issues.", "")
+	defer slackConfig.SlackNotify(fmt.Sprintf("Continuous Perf Analysis has ended all iterations. Total time spent: %s", args.Timeout.String()), thread_ts)
 	go func(c chan string) {
 		for i := 1; ; i++ {
 			log.Printf("\n%[2]s\nIteration no. %[1]d\n%[2]s\n", i, strings.Repeat("~", 80))
@@ -127,5 +128,5 @@ func main() {
 		log.Println(err)
 	}
 	time.Sleep(d)
-	slackConfig.SlackNotify(fmt.Sprintf("Continuous Perf Analysis has ended all iterations. Total time spent: %s", d.String()), thread_ts)
+
 }
