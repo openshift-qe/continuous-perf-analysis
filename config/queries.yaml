@@ -59,12 +59,17 @@
     val: nil
     threshold: 4 # GiB
     operator: lte
-# - query: 'max(container_runtime_crio_containers_oom_total)'
-#   watchFor:
-#     key: nil
-#     val: nil
-#     threshold: 3
-#     operator: lt
-
-# Metrics of Interest: ovnkube_master_requeue_service_total, ovnkube_master_skipped_nbctl_daemon_total, ovnkube_master_sync_service_total, ovnkube_master_ovn_cli_latency_seconds_sum
+- query: 'max(container_runtime_crio_containers_oom_total)'
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 3
+    operator: lt
+- query: 'max(ovnkube_master_skipped_nbctl_daemon_total)'
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 3
+    operator: lt
+# Metrics of Interest: ovnkube_master_requeue_service_total, ovnkube_master_skipped_nbctl_daemon_total, ovnkube_master_sync_service_total, max(ovnkube_master_ovn_cli_latency_seconds_count) by (command)
 #                      max(ovnkube_master_pod_creation_latency_seconds_bucket), ovnkube_master_workqueue_depth, max(ovnkube_master_workqueue_retries_total),ovnkube_node_cni_request_duration_seconds_count
