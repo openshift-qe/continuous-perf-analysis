@@ -72,7 +72,9 @@ Received following on the channel: %s
 %[1]s
 			`, strings.Repeat("~", 80), msg)
 			log.Println(msgFmt)
-			s.SlackNotify("Following query failed:"+msg, thread_ts)
+			if s.ChannelID != "" && s.UserID != "" && s.SlackToken != "" {
+				s.SlackNotify("Following query failed:"+msg, thread_ts)
+			}
 		default:
 			fmt.Printf("\r%s Please Wait. No new message received on the channel....", waitChars[rand.Intn(4)])
 			time.Sleep(time.Millisecond * 500)

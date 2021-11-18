@@ -108,7 +108,7 @@ Value: %.4f %s Threshold: %.4f is %t
 `, q.Query, v1, opMap[watchItems.Operator], v2, b)
 				if !b {
 					log.Printf("\n%[2]s\n Comparison of Value and Threshold is %[1]t. Notifying...\n%[2]s\n", b, strings.Repeat("~", 80))
-					c <- fmt.Sprintf("\nQuery: %s\nValue: %.4f %s Threshold: %.4f is %t\n", q.Query, v1, opMap[watchItems.Operator], v2, b)
+					c <- fmt.Sprintf("\nQuery: %s\nValue: %.4f %s Threshold: %.4f is %t for key: %q and val: %q\n", q.Query, v1, opMap[watchItems.Operator], v2, b, watchItems.Key, watchItems.Val)
 					if terminateBenchmark != "" {
 						tb <- true // send signal to terminate benchmark channel
 					}

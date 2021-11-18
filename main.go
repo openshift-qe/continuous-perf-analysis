@@ -68,10 +68,6 @@ func main() {
 		return
 	}
 
-	if slackConfig.ChannelID == "" || slackConfig.UserID == "" || slackConfig.SlackToken == "" {
-		log.Printf("Oops something went wrong while trying to fetch Slack Config, check config/slack.yaml")
-		return
-	}
 	// fmt.Println("UserID, Channel ID, slackToken: ", slackConfig)
 	// queries := []string{
 	// `sum(kube_pod_status_phase{}) by (phase) > 0`, // pod count by phase
@@ -105,8 +101,13 @@ func main() {
 	for _, item := range queryList {
 		log.Println(item.Query)
 	}
-	thread_ts := slackConfig.SlackNotify("New benchmark started, we will monitor it for performance and notify here with the issues.", "")
-	defer slackConfig.SlackNotify(fmt.Sprintf("Continuous Perf Analysis has ended all iterations. Total time spent: %s", args.Timeout.String()), thread_ts)
+	var thread_ts string
+	if slackConfig.ChannelID != "" && slackConfig.UserID != "" && slackConfig.SlackToken != "" {
+		thread_ts = slackConfig.SlackNotify("New benchmark started, we will monitor it for performance and notify here with the issues.", "")
+		defer slackConfig.SlackNotify(fmt.Sprintf("Continuous Perf Analysis has ended all iterations. Total time spent: %s", args.Timeout.String()), thread_ts)
+	} else {
+		log.Printf("No slack notifications will be sent as Slack Config is not properly setup. One of the fields may be empty. Check config/slack.yaml")
+	}
 	go func(c chan string) {
 		for i := 1; ; i++ {
 			log.Printf("\n%[2]s\nIteration no. %[1]d\n%[2]s\n", i, strings.Repeat("~", 80))

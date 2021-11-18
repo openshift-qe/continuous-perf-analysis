@@ -23,8 +23,8 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
 * [x] Slack Notification
 * [x] Notify/Do Something(e.g. Pause/Kill benchmark jobs to preserve cluster) when results don't match conditions
 * [x] Spawn goroutines to keep running queries and evaluating results to handle scale - e.g. when we have very large number of queries in the yaml file, we can divide and concurrently run queries
+* [x] If slack config is not set, it is ignored and no attempts will be made to notify via slack
 * [] debug mode
-* [] make slack optional
 * [] use env vars
 
 
