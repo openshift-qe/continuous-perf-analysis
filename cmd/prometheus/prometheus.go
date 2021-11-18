@@ -38,36 +38,42 @@ func (c *prometheusConfig) Parse(data []byte) error {
 	return yaml.Unmarshal(data, c)
 }
 
-func readPrometheusConfig() (url, bearerToken string, ok bool) {
+func readPrometheusConfig() (url, bearerToken string, err error) {
 	data, err := ioutil.ReadFile(configPath + "prometheus.yaml")
+	msg := fmt.Sprintf("Cound't read %sprometheus.yaml", configPath)
 	if err != nil {
-		log.Printf("Cound't read %s/prometheus.yaml", configPath)
-		return "", "", false
+		return "", "", fmt.Errorf(msg)
 	}
 	var config prometheusConfig
 	if err := config.Parse(data); err != nil {
 		log.Fatal(err)
+		return "", "", err
 	}
 	if (config != prometheusConfig{}) {
-		return config.Url, config.BearerToken, true
+		return config.Url, config.BearerToken, nil
+	} else {
+		// we didn't find token or url but we didn't hit any errors
+		// this means the url and token were empty, so return so
+		return "", "", nil
 	}
-	return "", "", false
 }
 
-func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, ok bool) {
-	url, bearerToken, ok = readPrometheusConfig()
-	if ok {
+func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, err error) {
+	url, bearerToken, err = readPrometheusConfig()
+	if err != nil {
+		return "", "", err
+	} else if url != "" && bearerToken != "" {
 		return
 	}
-
-	_, err := oc.AdminKubeClient().CoreV1().Services("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
+	// if we haven't returned by now, means the token and url are empty, so let's find it.
+	_, err = oc.AdminKubeClient().CoreV1().Services("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
 	if kapierrs.IsNotFound(err) {
-		return "", "", false
+		return "", "", err
 	}
 	for i := 0; i < 30; i++ {
-		secrets, err := oc.AdminKubeClient().CoreV1().Secrets("openshift-monitoring").List(metav1.ListOptions{})
-		if err != nil {
-			log.Printf("An Error has occured %s", err)
+		secrets, secretErr := oc.AdminKubeClient().CoreV1().Secrets("openshift-monitoring").List(metav1.ListOptions{})
+		if secretErr != nil {
+			log.Printf("An Error has occured %s", secretErr)
 			return
 		}
 		for _, secret := range secrets.Items {
@@ -88,9 +94,9 @@ func LocatePrometheus(oc *exutil.CLI) (url, bearerToken string, ok bool) {
 	}
 	route, err := oc.AdminRouteClient().RouteV1().Routes("openshift-monitoring").Get("prometheus-k8s", metav1.GetOptions{})
 	if kapierrs.IsNotFound(err) {
-		return "", "", false
+		return "", "", err
 	}
-	return "https://" + route.Spec.Host, bearerToken, true
+	return "https://" + route.Spec.Host, bearerToken, nil
 }
 
 type prometheusResponse struct {

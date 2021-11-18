@@ -7,57 +7,69 @@
     operator: lte
   - key: phase
     val: "Failed"
+    threshold: 10
+    operator: lte
+- query: "sum(kube_node_status_condition{status='true'}) by (condition) > 0"
+  watchFor:
+  - key: condition
+    val: "Ready"
+    threshold: 6
+    operator: eq
+- query: "sum by (condition)(cluster_operator_conditions{condition!=''})"
+  watchFor:
+  - key: condition
+    val: "Failing"
     threshold: 0
     operator: eq
-  - key: phase
-    val: "Succeeded"
-    threshold: 77
-    operator: gte
+  - key: condition
+    val: "Degraded"
+    threshold: 0
+    operator: eq
+  - key: condition
+    val: "Available"
+    threshold: 33
+    operator: eq
+- query: 'max(sum(container_memory_rss{namespace!="",name!="",container="prometheus"}) by (pod))/1073742000'   # 1073742000 is bytes per GiB
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 7 # GiB
+    operator: lt
+- query: 'max(sum(container_memory_working_set_bytes{namespace!="",name!="",container="prometheus"}) by (pod))/1073742000'   # 1073742000 is bytes per GiB,  if container_memory_working_set_bytes or container_memory_rss reached to the limits, the pod will be killed.But, container_memory_usage_bytes reaches to the limits, your pod will NOT get oom-killed
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 7 # GiB
+    operator: lt
 - query: "sum(kube_namespace_status_phase) by (phase)"
   watchFor:
   - key: phase
     val: "Terminating"
     threshold: 0
     operator: eq
-- query: 'max(sum by (instance) (rate(ovnkube_master_pod_creation_latency_seconds_sum[20m])))'                                                                      # Pod annoation latency
-  watchFor: # watchFor will have only 1 value for latency/duration queries
-  - key: nil
-    val: nil
-    threshold: 0.02
-    operator: lt
-- query: 'max(sum by (instance) (rate(ovnkube_node_cni_request_duration_seconds_sum{command="ADD"}[20m])))'                                                          # CNI Request duration for "ADD" command over 2m interval
+- query: 'max(sum(container_memory_working_set_bytes{pod=~"ovnkube-master-.*",namespace="openshift-ovn-kubernetes",container=""}) by (pod, node))/1073742000'
   watchFor:
   - key: nil
     val: nil
-    threshold: 0.1
-    operator: lt
-- query: 'max(sum by (instance) (rate(ovnkube_node_cni_request_duration_seconds_sum{command="DEL"}[20m])))'                                                          # CNI Request duration for "DEL" command over 2m interval
+    threshold: 4 # GiB
+    operator: lte
+- query: 'max(sum(container_memory_working_set_bytes{pod=~"ovnkube-node-.*",namespace="openshift-ovn-kubernetes",container=""}) by (pod, node))/1073742000'
   watchFor:
   - key: nil
     val: nil
-    threshold: 0.02
-    operator: lt
-- query: 'max(sum(container_memory_working_set_bytes{pod=~"ovnkube-master-.*",namespace="openshift-ovn-kubernetes",container=""}) by (node))'
+    threshold: 4 # GiB
+    operator: lte
+- query: 'max(container_runtime_crio_containers_oom_total)'
   watchFor:
   - key: nil
     val: nil
-    threshold: 209715200
+    threshold: 3
     operator: lt
-- query: 'max(sum(container_memory_rss{namespace!="",name!="",container="prometheus"}) by (pod))/1073742000'   # 1073742000 is bytes per GiB
+- query: 'max(ovnkube_master_skipped_nbctl_daemon_total)'
   watchFor:
   - key: nil
     val: nil
-    threshold: 2 # GiB
+    threshold: 3
     operator: lt
-# - query: 'topk(10, rate(container_cpu_usage_seconds_total{pod=~"ovnkube-.*",namespace="openshift-ovn-kubernetes",container="ovn-controller"}[2m])*100)'        # top 10 - ovn-controller cpu usage
-#   watchFor:
-# - query: 'topk(10, sum(container_memory_working_set_bytes{pod=~"ovnkube-node-.*",namespace="openshift-ovn-kubernetes",container="ovn-controller"}) by (node))' # top 10 - ovn-controller memory usage
-#   watchFor:
-# - query: 'sum(container_memory_rss{pod="prometheus-k8s-0",namespace!="",name!="",container="prometheus"}) by (pod)'                                            # Prometheus replica 0 rss memory
-#   watchFor:
-# - query: 'sum(container_memory_rss{pod="prometheus-k8s-1",namespace!="",name!="",container="prometheus"}) by (pod)'                                            # Prometheus replica 1 rss memory
-#   watchFor:
-# - query: 'rate(container_cpu_usage_seconds_total{pod=~"ovnkube-master.*",namespace="openshift-ovn-kubernetes",container!=""}[2m])*100'                         # CPU usage ovnkube-master components over 2m interval
-#   watchFor:
-# - query: 'sum by (condition)(cluster_operator_conditions{condition!=""})'
-#   watchFor:
+# Metrics of Interest: ovnkube_master_requeue_service_total, ovnkube_master_skipped_nbctl_daemon_total, ovnkube_master_sync_service_total, max(ovnkube_master_ovn_cli_latency_seconds_count) by (command)
+#                      max(ovnkube_master_pod_creation_latency_seconds_bucket), ovnkube_master_workqueue_depth, max(ovnkube_master_workqueue_retries_total),ovnkube_node_cni_request_duration_seconds_count

@@ -7,10 +7,13 @@ module github.com/kedark3/cpa
 go 1.16
 
 require (
+	github.com/alexflint/go-arg v1.4.2
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.16.0
 	github.com/openshift/openshift-tests v0.0.0-20210916082130-4fca21c38ee6
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/common v0.6.0
+	github.com/slack-go/slack v0.9.5
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.17.1
 	k8s.io/apimachinery v0.17.1
