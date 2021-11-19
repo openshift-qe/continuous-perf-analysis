@@ -3,7 +3,42 @@
 
 This tool allows OpenShift users to run a watcher for Prometheus queries and define thresholds (using a yaml file) to observe the performance of the OpenShift cluster during performance testing.  It could be generalized to run constantly against a cluster and alert you when cluster is looking bad. It may sound like some of the other monitoring & alerting solutions but its supposed to be simple, scalable and user-friendly.
 
-## To Do:
+
+## Why use CPA:
+
+- Runs external and can work with any "Prometheus"
+- Can be extended to run queries other than Prometheus, such as ElasticSearch, or simple OC CLI commands
+- History for each time you run - can be stored in log files
+
+
+## Design:
+```
+                        ┌─────────────────────┐                             ┌───────────────────────────┐
+                        │                     │                             │           OpenShift       │
+                        │ Benchmark Job       │                             │                           │
+                        │                     │                             │     ┌───────────────┐     │
+                        │ (optional)          │                             │     │ Prometheus    │     │
+                        └────────▲────────────┘                             │     │       ▲       │     │
+                                 │                                          │     └───────┬───────┘     │ - At least one prometheus cluster info required
+                         Ability to kill benchmark job                      │             │             │
+                                 │                                          │             │             │
+                                 │                                          └─────────────┼─────────────┘
+                        ┌────────┴────────────┐                                           │
+┌─────────────────┐     │                     │        Determines Url and Token           │
+│                 │     │ Continuous Perf     ├───────────────────────────────────────────┘
+│  Slack Notifs.  ◄─────┤   Analysis - CPA    │            Runs Queries
+│                 │     │                     │
+│                 │     │                     │                              ┌──────────────────────────┐
+└─────────────────┘     └───────┬─────────────┘                              │                          │
+                                │                                            │                          │
+                                │         Requires Url and Token             │  Prometheus - external
+                                └───────────────────────────────────────────►│                          │
+                                              Runs Queries                   │                          │
+                                                                             └──────────────────────────┘
+```
+
+
+## Features:
 
 * [x] Create oc cli connection to OpenShift/Kubernetes using Kubeconfig
 * [x] Determine Prometheus url, bearerToken for OpenShift
@@ -24,8 +59,9 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
 * [x] Notify/Do Something(e.g. Pause/Kill benchmark jobs to preserve cluster) when results don't match conditions
 * [x] Spawn goroutines to keep running queries and evaluating results to handle scale - e.g. when we have very large number of queries in the yaml file, we can divide and concurrently run queries
 * [x] If slack config is not set, it is ignored and no attempts will be made to notify via slack
-* [] debug mode
-* [] use env vars
+* [ ] debug mode
+* [ ] use env vars
+* [ ] Enhance log files to include uuid/time
 
 
 ## Usage:
@@ -51,3 +87,4 @@ Options:
                          When CPA is running in parallel with benchmark job, let CPA know to kill benchmark if any query fail. (E.g. -k <processID>) Helpful to preserve cluster for further analysis.
   --help, -h             display this help and exit
 ```
+
