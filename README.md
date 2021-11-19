@@ -59,9 +59,10 @@ This tool allows OpenShift users to run a watcher for Prometheus queries and def
 * [x] Notify/Do Something(e.g. Pause/Kill benchmark jobs to preserve cluster) when results don't match conditions
 * [x] Spawn goroutines to keep running queries and evaluating results to handle scale - e.g. when we have very large number of queries in the yaml file, we can divide and concurrently run queries
 * [x] If slack config is not set, it is ignored and no attempts will be made to notify via slack
-* [ ] debug mode
-* [ ] use env vars
-* [ ] Enhance log files to include uuid/time
+* [x] debug/verbose mode
+* [x] Enhance log files to include uuid/time
+* [x] Use env vars
+* [x] RFE:  come up with a basic "cluster health" profile that anyone can use. Operator monitoring + some best practice monitors from the dittybopper dashboards
 
 
 ## Usage:

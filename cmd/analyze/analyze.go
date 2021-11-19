@@ -60,17 +60,17 @@ func ReadPrometheusQueries(queriesFile string) (queriesList queryList, err error
 	return queriesList, nil
 }
 
-func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c chan string, tb chan bool, terminateBenchmark string) {
+func Queries(queryList queryList, oc *exutil.CLI, baseURL, bearerToken string, c chan string, tb chan bool, terminateBenchmark string, verbose bool) {
 	// start := time.Now()
 	for _, item := range queryList {
-		go runQuery(item, oc, baseURL, bearerToken, c, tb, terminateBenchmark)
+		go runQuery(item, oc, baseURL, bearerToken, c, tb, terminateBenchmark, verbose)
 	}
 	wg.Wait()
 	// end := time.Since(start)
 	// log.Printf("\n It takes %s time to run queries", end)
 }
 
-func runQuery(q queries, oc *exutil.CLI, baseURL, bearerToken string, c chan string, tb chan bool, terminateBenchmark string) {
+func runQuery(q queries, oc *exutil.CLI, baseURL, bearerToken string, c chan string, tb chan bool, terminateBenchmark string, verbose bool) {
 	wg.Add(1)
 	defer wg.Done()
 	result, err := prometheus.RunQuery(q.Query, oc, baseURL, bearerToken)
@@ -79,6 +79,12 @@ func runQuery(q queries, oc *exutil.CLI, baseURL, bearerToken string, c chan str
 		return
 	}
 	opMap := map[string]string{"eq": "==", "lt": "<", "gt": ">", "lte": "<=", "gte": ">="}
+	if verbose {
+		log.Printf("Verbose Metric values for %s are:", q.Query)
+		for _, metric := range result.Data.Result {
+			log.Printf("%v\n", metric)
+		}
+	}
 	for _, metric := range result.Data.Result {
 		for _, watchItems := range q.WatchFor {
 			// log.Println(watchItems.Key, watchItems.Val, watchItems.Threshold)

@@ -28,12 +28,13 @@ func main() {
 		Timeout            time.Duration `arg:"-t,--timeout" help:"Duration to run Continuous Performance Analysis. You can pass values like 4h or 1h10m10s" default:"4h"`
 		LogOutput          bool          `arg:"-l,--log-output" help:"Output will be stored in a log file(cpa.log) in addition to stdout." default:"false"`
 		TerminateBenchmark string        `arg:"-k,--terminate-benchmark" help:"When CPA is running in parallel with benchmark job, let CPA know to kill benchmark if any query fail. (E.g. -k <processID>) Helpful to preserve cluster for further analysis." default:""`
+		Verbose            bool          `arg:"-v,--verbose" help:"When this mode is enabled, output will contain much more information about each query."`
 	}
 	arg.MustParse(&args)
 
 	o.RegisterFailHandler(g.Fail)
 	if args.LogOutput {
-		f, err := os.OpenFile("cpa.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		f, err := os.OpenFile("cpa_"+time.Now().Format("2006-01-02_15:04:05")+".log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		multiWriter := io.MultiWriter(os.Stdout, f)
 		if err != nil {
 			log.Fatal(err)
@@ -111,7 +112,7 @@ func main() {
 	go func(c chan string) {
 		for i := 1; ; i++ {
 			log.Printf("\n%[2]s\nIteration no. %[1]d\n%[2]s\n", i, strings.Repeat("~", 80))
-			analyze.Queries(queryList, oc, url, bearerToken, c, tb, args.TerminateBenchmark)
+			analyze.Queries(queryList, oc, url, bearerToken, c, tb, args.TerminateBenchmark, args.Verbose)
 			time.Sleep(args.QueryFrequency)
 			if !args.NoClrscr {
 				log.Print("\033[H\033[2J") // clears screen before printing next iteration

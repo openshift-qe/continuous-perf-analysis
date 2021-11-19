@@ -27,6 +27,25 @@ func (c *slackConfig) Parse(data []byte) error {
 }
 
 func ReadslackConfig() (config slackConfig, err error) {
+	userID, ok := os.LookupEnv("SLACK_USERID")
+	if !ok {
+		log.Println("Didn't find the Slack User ID in the Env Var. Will look it up in config/ dir")
+	}
+	channelID, ok := os.LookupEnv("SLACK_CHANNELID")
+	if !ok {
+		log.Println("Didn't find the Slack Channel ID in the Env Var. Will look it up in config/ dir")
+	}
+	slackToken, ok := os.LookupEnv("SLACK_TOKEN")
+	if !ok {
+		log.Println("Didn't find the Slack Token in the Env Var. Will look it up in config/ dir")
+	}
+	if userID != "" && channelID != "" && slackToken != "" {
+		log.Printf("Found env vars for SLACK_USERID, SLACK_CHANNELID, and SLACK_TOKEN as: %s, %s and %s(hidden for security)", userID, channelID, string(slackToken[len(slackToken)-4:]))
+		config.ChannelID = channelID
+		config.UserID = userID
+		config.SlackToken = slackToken
+		return config, nil
+	}
 	data, err := ioutil.ReadFile(configPath + "slack.yaml")
 	msg := fmt.Sprintf("Cound't read %sslack.yaml", configPath)
 	if err != nil {

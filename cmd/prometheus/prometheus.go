@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -39,12 +40,24 @@ func (c *prometheusConfig) Parse(data []byte) error {
 }
 
 func readPrometheusConfig() (url, bearerToken string, err error) {
+	url, ok := os.LookupEnv("PROM_URL")
+	if !ok {
+		log.Println("Didn't find the Prometheus URL in the Env Var. Will look it up in config/ dir")
+	}
+	bearerToken, ok = os.LookupEnv("BEARER_TOKEN")
+	if !ok {
+		log.Println("Didn't find the Prometheus BEARER_TOKEN in the Env Var. Will look it up in config/ dir")
+	}
+	if bearerToken != "" && url != "" {
+		log.Printf("Found env vars for PROM_URL and BEARER_TOKEN as: %s and %s(hidden for security)", url, string(bearerToken[len(bearerToken)-4:]))
+		return url, bearerToken, nil
+	}
+	var config prometheusConfig
 	data, err := ioutil.ReadFile(configPath + "prometheus.yaml")
 	msg := fmt.Sprintf("Cound't read %sprometheus.yaml", configPath)
 	if err != nil {
 		return "", "", fmt.Errorf(msg)
 	}
-	var config prometheusConfig
 	if err := config.Parse(data); err != nil {
 		log.Fatal(err)
 		return "", "", err
