@@ -28,7 +28,7 @@
   - key: condition
     val: "Available"
     threshold: 33
-    operator: eq
+    operator: gte
 - query: 'max(sum(container_memory_rss{namespace!="",name!="",container="prometheus"}) by (pod))/1073742000'   # 1073742000 is bytes per GiB
   watchFor:
   - key: nil
@@ -71,5 +71,109 @@
     val: nil
     threshold: 3
     operator: lt
+- query: 'histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket{subresource!="log",verb!~"WATCH|WATCHLIST|PROXY"}[5m])) by(verb,le))'
+  watchFor:
+  - key: verb
+    val: PATCH
+    threshold: 0.50
+    operator: lte
+  - key: verb
+    val: APPLY
+    threshold: 0.50
+    operator: lte
+  - key: verb
+    val: GET
+    threshold: 0.50
+    operator: lte
+  - key: verb
+    val: LIST
+    threshold: 0.50
+    operator: lte
+  - key: verb
+    val: POST
+    threshold: 0.50
+    operator: lte
+  - key: verb
+    val: PUT
+    threshold: 0.50
+    operator: lte
+  - key: verb
+    val: DELETE
+    threshold: 0.50
+    operator: lte
+- query: 'sum(rate(apiserver_request_total[5m])) by(code)'
+  watchFor:
+  - key: code
+    val: 403
+    threshold: 10
+    operator: lte
+  - key: code
+    val: 404
+    threshold: 10
+    operator: lte
+  - key: code
+    val: 500
+    threshold: 10
+    operator: lte
+  - key: code
+    val: 504
+    threshold: 10
+    operator: lte
+- query: 'sum(apiserver_current_inflight_requests) by (request_kind)'
+  watchFor:
+  - key: request_kind
+    val: mutating
+    threshold: 10
+    operator: lte
+  - key: request_kind
+    val: readOnly
+    threshold: 100
+    operator: lte
+- query: 'sum(rate(apiserver_dropped_requests_total[5m])) by (request_kind)'
+  watchFor:
+  - key: request_kind
+    val: mutating
+    threshold: 10
+    operator: lte
+  - key: request_kind
+    val: readOnly
+    threshold: 100
+    operator: lte
+- query: 'sum(apiserver_flowcontrol_current_inqueue_requests)'  # Pending request count
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 10
+    operator: lte
+- query: 'max((etcd_mvcc_db_total_size_in_bytes{} / etcd_server_quota_backend_bytes{})*100)' # Max % DB Space used across all nodes of etcd
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 90
+    operator: lte
+- query: 'etcd_server_has_leader'
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 1
+    operator: eq
+- query: 'etcd_server_health_failures'
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 0
+    operator: lte
+- query: 'etcd_server_health_failures'
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 1
+    operator: lte
+- query: 'sum(rate(etcd_server_leader_changes_seen_total[2m]))'
+  watchFor:
+  - key: nil
+    val: nil
+    threshold: 5
+    operator: lte
 # Metrics of Interest: ovnkube_master_requeue_service_total, ovnkube_master_skipped_nbctl_daemon_total, ovnkube_master_sync_service_total, max(ovnkube_master_ovn_cli_latency_seconds_count) by (command)
 #                      max(ovnkube_master_pod_creation_latency_seconds_bucket), ovnkube_master_workqueue_depth, max(ovnkube_master_workqueue_retries_total),ovnkube_node_cni_request_duration_seconds_count
